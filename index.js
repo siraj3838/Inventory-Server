@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 require('dotenv').config();
-const port = process.env.PORT || 5000
+const port = process.env.PORT || 5000;
 
 
 app.use(cors());
@@ -28,49 +28,101 @@ async function run() {
         const storeCollection = client.db('newStoreDB').collection('store');
         const newsLetterCollection = client.db('newStoreDB').collection('letters');
         const feedbackCollection = client.db('newStoreDB').collection('feedbacks');
+        const productCollection = client.db('newStoreDB').collection('products');
 
 
 
-        
+        // product Collection
+        app.post('/allProducts', async (req, res) => {
+            const email = req.body.email;
+            const existProduct = await productCollection.countDocuments({ email: email });
+            if (existProduct >= 3) {
+                return res.send({ message: 'You can’t add more Product please Subscription' })
+            }
+            const newProduct = { ...req.body, email: email };
+            const result = await productCollection.insertOne(newProduct);
+            res.send(result);
+        })
+        app.get('/allProducts', async (req, res) => {
+            const result = await productCollection.find().toArray();
+            res.send(result);
+        })
+        app.get('/allProducts', async (req, res) => {
+            const email = req?.query?.email;
+            const query = { email: email };
+            const result = await productCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.get('/allProducts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await productCollection.findOne(query);
+            res.send(result);
+        })
+        app.put('/allProducts/:id', async (req, res) => {
+            const id = req.params.id;
+            const product = req.body;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updateProduct = {
+                $set: {
+                    productName: product.productName,
+                    image: product.image,
+                    productQuantity: product.productQuantity,
+                    productLocation: product.productLocation,
+                    productionCost: product.productionCost,
+                    profitMargin: product.profitMargin,
+                    discount: product.discount,
+                    productDescription: product.productDescription,
+                }
+            }
+            const result = await productCollection.updateOne(filter, updateProduct, options);
+            res.send(result);
+        })
+
+        app.delete('/allProducts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await productCollection.deleteOne(query);
+            res.send(result);
+        })
+
         // Customer Testimonials
-        app.post('/feedBacks', async(req, res)=>{
+        app.post('/feedBacks', async (req, res) => {
             const feedBack = req.body;
             const result = await feedbackCollection.insertOne(feedBack);
             res.send(result);
         })
-        app.get('/feedBacks', async(req, res)=> {
+        app.get('/feedBacks', async (req, res) => {
             const result = await feedbackCollection.find().toArray();
             res.send(result);
         })
-        
+
         // news letters section
-        app.get('/allLetters', async(req, res)=> {
+        app.get('/allLetters', async (req, res) => {
             const result = await newsLetterCollection.find().toArray();
             res.send(result);
         })
 
         // new Store section
-        app.get('/allStores', async(req, res)=>{
-            let query = {}
-            if(req.query?.email){
-                query = {email: req.query.email}
-            }
-            const result = await storeCollection.find(query).toArray();
+        app.get('/allStores', async (req, res) => {
+            const result = await storeCollection.find().toArray();
             res.send(result);
         })
-        app.post('/allStores', async(req, res)=> {
+        app.post('/allStores', async (req, res) => {
             const store = req.body;
-            const query = {email: store.email};
+            const query = { email: store.email };
             const existEmail = await storeCollection.findOne(query);
-            if(existEmail){
-                return res.send({message: 'This Email Already Create Store', insertedId: null})
+            if (existEmail) {
+                return res.send({ message: 'This Email Already Create Store', insertedId: null })
             }
             const result = await storeCollection.insertOne(store);
             res.send(result);
         })
-        app.patch('/allStores/manager/:id', async(req, res)=> {
+        app.patch('/allStores/manager/:id', async (req, res) => {
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
+            const filter = { _id: new ObjectId(id) };
             const updatedManager = {
                 $set: {
                     role: 'manager',
