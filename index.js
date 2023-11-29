@@ -29,6 +29,88 @@ async function run() {
         const newsLetterCollection = client.db('newStoreDB').collection('letters');
         const feedbackCollection = client.db('newStoreDB').collection('feedbacks');
         const productCollection = client.db('newStoreDB').collection('products');
+        const salesCollection = client.db('newStoreDB').collection('sales');
+        const checkDoneCollection = client.db('newStoreDB').collection('getPaid');
+        const userCollection = client.db('newStoreDB').collection('users');
+
+
+
+        // user Collection
+        app.post('/allUsers', async(req, res)=>{
+            const user = req.body;
+            const result = await userCollection.insertOne(user);
+            res.send(result);
+        })
+        app.get('/allUsers', async(req, res)=>{
+            const result = await userCollection.find().toArray();
+            res.send(result);
+        })
+        app.get('/allUsers/:email', async(req, res)=>{
+            const email = req.params.email;
+            const query = {email: email};
+            const user = await userCollection.findOne(query);
+            let admin = false;
+            if(user){
+                admin = user?.role === 'admin';
+            }
+            res.send({admin});
+        })
+       
+
+
+        // check Out Collection
+        app.post('/pendingPaid', async (req, res) => {
+            const payment = req.body;
+            const paymentResult = await checkDoneCollection.insertOne(payment);
+            const query = {
+                _id: {
+                    $in: payment.cartIds.map(id => new ObjectId(id))
+                }
+            }
+            const deleteResult = await salesCollection.deleteMany(query);
+            res.send(deleteResult);
+        })
+        app.get('/pendingPaid', async (req, res) => {
+            const email = req?.query?.email;
+            const query = {
+                email: email,
+            };
+            const result = await checkDoneCollection.find(query).toArray();
+            res.send(result);
+        })
+        app.get('/pendingPaidAdmin', async (req, res) => {
+            const result = await checkDoneCollection.find().toArray();
+            res.send(result);
+        })
+
+
+        // sales Collection
+        app.post('/salesProduct', async (req, res) => {
+            const product = req.body;
+            const result = await salesCollection.insertOne(product);
+            res.send(result);
+        })
+        app.get('/salesProduct', async (req, res) => {
+            const result = await salesCollection.find().toArray();
+            res.send(result);
+        })
+        app.put('/quantityUpdate/:id', async (req, res) => {
+            const id = req.params.id;
+            const productQuantity = req.body.productQuantity;
+            const saleCount = req.body.saleCount;
+            // const product = req.body;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updateQuantity = {
+                $set: {
+                    productQuantity: productQuantity - 1,
+                    saleCount: saleCount + 1
+                }
+            }
+            const result = await productCollection.updateOne(filter, updateQuantity, options);
+            res.send(result);
+        })
+
 
 
 
@@ -43,23 +125,19 @@ async function run() {
             const result = await productCollection.insertOne(newProduct);
             res.send(result);
         })
-        app.get('/allProducts', async (req, res) => {
+        app.get('/allProductsAdmin', async (req, res) => {
             const result = await productCollection.find().toArray();
             res.send(result);
         })
         app.get('/allProducts', async (req, res) => {
             const email = req?.query?.email;
-            const query = { email: email };
+            const query = {
+                email: email,
+            };
             const result = await productCollection.find(query).toArray();
             res.send(result);
         })
 
-        app.get('/allProducts/:id', async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await productCollection.findOne(query);
-            res.send(result);
-        })
         app.put('/allProducts/:id', async (req, res) => {
             const id = req.params.id;
             const product = req.body;
@@ -80,6 +158,7 @@ async function run() {
             const result = await productCollection.updateOne(filter, updateProduct, options);
             res.send(result);
         })
+
 
         app.delete('/allProducts/:id', async (req, res) => {
             const id = req.params.id;
