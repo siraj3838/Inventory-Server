@@ -47,9 +47,20 @@ async function run() {
         })
 
         // user Collection
-        app.post('/allUsers', async(req, res)=>{
-            const user = req.body;
-            const result = await userCollection.insertOne(user);
+        app.post('/allUsers', async (req, res) => {
+            const store = req.body;
+            const query = { email: store.email };
+            const existEmail = await userCollection.findOne(query);
+            if (existEmail) {
+                return res.send({ message: 'This Email Already Create user', insertedId: null })
+            }
+            const result = await userCollection.insertOne(store);
+            res.send(result);
+        })
+        app.get('/allUsersSea/:email', async(req, res)=>{
+            const email = req.params.email;
+            const query = {email: email};
+            const result = await userCollection.find(query).toArray();
             res.send(result);
         })
 
@@ -253,8 +264,8 @@ async function run() {
         })
         
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        // await client.db("admin").command({ ping: 1 });
+        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
