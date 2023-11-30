@@ -24,7 +24,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        // await client.connect()
+        // await client.connect();
         const storeCollection = client.db('newStoreDB').collection('store');
         const newsLetterCollection = client.db('newStoreDB').collection('letters');
         const feedbackCollection = client.db('newStoreDB').collection('feedbacks');
@@ -32,8 +32,19 @@ async function run() {
         const salesCollection = client.db('newStoreDB').collection('sales');
         const checkDoneCollection = client.db('newStoreDB').collection('getPaid');
         const userCollection = client.db('newStoreDB').collection('users');
+        const paymentCheckFormCollection = client.db('newStoreDB').collection('paymentCheck');
 
 
+        // Payment Check Form Collection
+        app.post('/paymentChecks', async(req, res)=>{
+            const payment = req.body;
+            const result = await paymentCheckFormCollection.insertOne(payment);
+            res.send(result);
+        })
+        app.get('/paymentChecks', async(req, res)=>{
+            const result = await paymentCheckFormCollection.find().toArray();
+            res.send(result);
+        })
 
         // user Collection
         app.post('/allUsers', async(req, res)=>{
@@ -41,9 +52,17 @@ async function run() {
             const result = await userCollection.insertOne(user);
             res.send(result);
         })
+
         app.get('/allUsers', async(req, res)=>{
-            const result = await userCollection.find().toArray();
-            res.send(result);
+            const query = req.query;
+            const page = query.page;
+            const pageNum = parseInt(page);
+            const perPage = 6
+            const skip = pageNum * perPage;
+            const post = userCollection.find().skip(skip).limit(perPage)
+            const result = await post.toArray();
+            const postCount = await userCollection.countDocuments()
+            res.send({result, postCount});
         })
         app.get('/allUsers/:email', async(req, res)=>{
             const email = req.params.email;
@@ -54,6 +73,19 @@ async function run() {
                 admin = user?.role === 'admin';
             }
             res.send({admin});
+        })
+        app.patch('/allUsersSearch/:id', async (req, res) => {
+            const id = req.params.id;
+            const user= req.body;
+            const filter = { _id: new ObjectId(id) };
+            const updatedUser = {
+                $set: {
+                    role: 'manager',
+                    shopName: user?.shopName
+                }
+            }
+            const result = await userCollection.updateOne(filter, updatedUser);
+            res.send(result);
         })
        
 
@@ -189,6 +221,14 @@ async function run() {
             const result = await storeCollection.find().toArray();
             res.send(result);
         })
+        app.get("/allStoreManager/:email", async (req, res) => {
+            const email = req?.params?.email;
+            const query = { email: email };
+            const user = await storeCollection.findOne(query);
+            const isManager = user?.role === "manager";
+            res.send({ isManager });
+        })
+
         app.post('/allStores', async (req, res) => {
             const store = req.body;
             const query = { email: store.email };
@@ -211,7 +251,7 @@ async function run() {
             const result = await storeCollection.updateOne(filter, updatedManager);
             res.send(result);
         })
-
+        
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
