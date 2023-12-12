@@ -210,7 +210,7 @@ async function run() {
             res.send(result);
         })
 
-        // Customer Testimonials
+        // Our Customer Testimonials
         app.post('/feedBacks', async (req, res) => {
             const feedBack = req.body;
             const result = await feedbackCollection.insertOne(feedBack);
